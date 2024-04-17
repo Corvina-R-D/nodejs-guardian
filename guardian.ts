@@ -6,11 +6,18 @@ import * as net from "net";
 import * as k8s from "@kubernetes/client-node";
 import yargs from "yargs";
 
+const kc = new k8s.KubeConfig();
+kc.loadFromDefault();
+const watch = new k8s.Watch(kc);
+const exec = new k8s.Exec(kc);
+const metrics = new k8s.Metrics(kc);
+const portforward = new k8s.PortForward(kc);
+
+
 const argv = yargs
   .option('namespace', {
     alias: 'n',
-    description: 'Namespace of the namespace',
-    demandOption: true,
+    description: 'Namespace of the namespace'
   })
   .option('service', {
     alias: 's',
@@ -62,9 +69,11 @@ const argv = yargs
   .alias('help', 'h')
   .argv;
 
+
+
 const serviceName = (argv as any).service;
 const container = (argv as any).container;
-const namespace = (argv as any).namespace;
+const namespace = (argv as any).namespace || kc.getContextObject(kc.getCurrentContext())?.namespace;
 const cpuProfiling = (argv as any).cpuProfiling;
 const heapProfiling = (argv as any).heapProfiling;
 const highCpuWatermarkMilli = (argv as any).highCpuWatermarkMilli;
@@ -77,13 +86,6 @@ if (!highCpuWatermarkMilli && !highMemoryWatermarkMi) {
   console.error("High CPU or memory watermark must be set");
   process.exit(1);
 }
-
-const kc = new k8s.KubeConfig();
-kc.loadFromDefault();
-const watch = new k8s.Watch(kc);
-const exec = new k8s.Exec(kc);
-const metrics = new k8s.Metrics(kc);
-const portforward = new k8s.PortForward(kc);
 
 class NodeGuardian {
   pod: string;
