@@ -1,0 +1,21 @@
+{
+  "name": "@corvina/nodejs-guardian",
+  "version": "1.0.1",
+  "main": "guardian.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "ts-node guardian.ts",
+    "build": "tsc"
+  },
+  "bin": "index.js",
+  "dependencies": {
+    "@kubernetes/client-node": "^0.20.0",
+    "ws": "^8.16.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/yargs": "^17.0.32",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
