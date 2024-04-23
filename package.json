@@ -1,6 +1,6 @@
 {
   "name": "@corvina/nodejs-guardian",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "main": "guardian.js",
   "license": "MIT",
   "scripts": {

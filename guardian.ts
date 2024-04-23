@@ -460,69 +460,86 @@ class NodeGuardian {
 
 const monitoredPods = new Map();
 
-watch.watch(
-  `/api/v1/namespaces/${namespace}/endpoints`,
-  {
-    allowWatchBookmarks: true,
-    fieldSelector: `metadata.name=${serviceName}`,
-  },
-  // Callback for when a change occurs
-  (type, endpoint: k8s.V1Endpoints) => {
-    //console.log(`Change occurred: ${type}`, endpoint);
+const  watcher = async () => { 
+  for(;;) {
+    console.log("... watch");
+    try {
+      await new Promise( (resolve, reject) => {
+      watch.watch(
+      `/api/v1/namespaces/${namespace}/endpoints`,
+      {
+        allowWatchBookmarks: true,
+        fieldSelector: `metadata.name=${serviceName}`,
+      },
+      // Callback for when a change occurs
+      (type, endpoint: k8s.V1Endpoints) => {
+        //console.log(`Change occurred: ${type}`, endpoint);
 
-    const newDiscoveredPods = new Map();
+        const newDiscoveredPods = new Map();
 
-    if (!endpoint) {
-      return;
-    }
+        if (!endpoint) {
+          return;
+        }
 
-    if (!endpoint.subsets) {
-      return;
-    }
+        if (!endpoint.subsets) {
+          return;
+        }
 
-    const subsets = endpoint.subsets;
-    subsets.forEach((subset) => {
-      if (subset.addresses) {
-        subset.addresses.forEach((address) => {
-          if (address?.targetRef) {
-            newDiscoveredPods.set(address.targetRef.name, address);
+        const subsets = endpoint.subsets;
+        subsets.forEach((subset) => {
+          if (subset.addresses) {
+            subset.addresses.forEach((address) => {
+              if (address?.targetRef) {
+                newDiscoveredPods.set(address.targetRef.name, address);
+              }
+            });
           }
         });
+
+        // compute the new pods to monitor and the old pods to stop monitor
+        const podsToMonitor = new Map();
+        const podsToStopMonitor = new Map();
+
+        newDiscoveredPods.forEach((value, key) => {
+          if (!monitoredPods.has(key)) {
+            podsToMonitor.set(key, value);
+          }
+        });
+
+        monitoredPods.forEach((value, key) => {
+          if (!newDiscoveredPods.has(key)) {
+            podsToStopMonitor.set(key, value);
+          }
+        });
+
+        // delete the guardians of pods that are no longer monitored
+        podsToStopMonitor.forEach((value, key) => {
+          value.stop();
+          monitoredPods.delete(key);
+        });
+
+        // create the guardians of pods that are newly monitored
+        podsToMonitor.forEach((value, key) => {
+          const guardian = new NodeGuardian(key, value.ip);
+          monitoredPods.set(key, guardian);
+        });
+      },
+      // Callback for when an error occurs
+      (err) => {
+        if (err) {
+          console.log(`Error watching: ${err}`);
+          reject(err);
+        } else {
+          console.log("Terminated watching")
+          resolve(true);
+        }
       }
-    });
-
-    // compute the new pods to monitor and the old pods to stop monitor
-    const podsToMonitor = new Map();
-    const podsToStopMonitor = new Map();
-
-    newDiscoveredPods.forEach((value, key) => {
-      if (!monitoredPods.has(key)) {
-        podsToMonitor.set(key, value);
-      }
-    });
-
-    monitoredPods.forEach((value, key) => {
-      if (!newDiscoveredPods.has(key)) {
-        podsToStopMonitor.set(key, value);
-      }
-    });
-
-    // delete the guardians of pods that are no longer monitored
-    podsToStopMonitor.forEach((value, key) => {
-      value.stop();
-      monitoredPods.delete(key);
-    });
-
-    // create the guardians of pods that are newly monitored
-    podsToMonitor.forEach((value, key) => {
-      const guardian = new NodeGuardian(key, value.ip);
-      monitoredPods.set(key, guardian);
-    });
-  },
-  // Callback for when an error occurs
-  (err) => {
-    if (err) {
-      console.log(`Error watching: ${err}`);
+      );
+      });
+    } catch(err) {
+      console.log("Retry watching...")
     }
   }
-);
+}
+
+watcher();
