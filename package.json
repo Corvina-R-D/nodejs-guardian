@@ -10,7 +10,7 @@
   "bin": "index.js",
   "dependencies": {
     "@kubernetes/client-node": "^0.20.0",
-    "ws": "^8.16.0",
+    "ws": "^8.21.0",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
